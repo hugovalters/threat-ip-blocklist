@@ -1,0 +1,37 @@
+ __     __    _ _                ___ _____
+ \ \   / /_ _| | |_ ___ _ __ ___|_ _|_   _|
+  \ \ / / _` | | __/ _ \ '__/ __|| |  | |
+   \ V / (_| | | ||  __/ |  \__ \| |  | |
+    \_/ \__,_|_|\__\___|_|  |___/___| |_|
+ ============================================================
+  ValtersIT Scanner  ·  CVE & Threat Intelligence
+  Copyright 2026 Valters Capital, SIA
+ ============================================================
+
+  > company .... Valters Capital, SIA
+  > reg_no ..... 40203105200
+  > vat ........ LV40203105200
+  > country .... Latvia, European Union
+  > maintainer . Hugo Valters
+  > web ........ https://www.valtersit.com
+  > api ........ https://api.valtersit.com
+
+ ------------------------------------------------------------
+  > TRADEMARK
+ ------------------------------------------------------------
+  "ValtersIT", the ValtersIT name and logo are trademarks of
+  Valters Capital, SIA and are NOT licensed under the Apache
+  License 2.0 (see clause 6). You may use the code under
+  Apache-2.0, but you may not use the ValtersIT name or logo
+  to name, brand, or promote a fork.
+
+ ------------------------------------------------------------
+  > LICENSE
+ ------------------------------------------------------------
+  This product is licensed as code under Apache-2.0.
+  Access to the ValtersIT API is governed separately by the
+  API Terms of Service at https://api.valtersit.com
+
+ ============================================================
+  $ scan smarter — https://www.valtersit.com
+ ============================================================
