@@ -206,15 +206,6 @@ def _save_consent_state(state):
         print("[!] Could not persist consent record locally: {}".format(exc), file=sys.stderr)
 
 
-def _submit_consent_stub(record):
-    """Best-effort audit-record submission. No-ops quietly today because the
-    server-side endpoint does not exist yet. Wire this to the real endpoint
-    once it ships — the local record above already carries everything it
-    will need."""
-    status, _ = api_post("/consent", json_body=record)
-    return status is not None and 200 <= status < 300
-
-
 def require_consent(tool_name, non_interactive=False):
     """Must be called, and must return True, before a scan does anything.
     Returns False (script must exit) if confirmation is refused or
@@ -253,7 +244,6 @@ def require_consent(tool_name, non_interactive=False):
     }
     state[tool_name] = record
     _save_consent_state(state)
-    _submit_consent_stub({"tool": tool_name, **record})
     return True
 
 
@@ -297,6 +287,35 @@ def compute_fingerprint(inventory):
 # Scan submission
 # ---------------------------------------------------------------------------
 
+def _ensure_server_consent():
+    """POST /api/v1/scan/consent — the real, required, server-side gate:
+    the API rejects every POST /api/v1/scan with 403 until this account has
+    a recorded scanner-consent, checked fresh per request (not cached from
+    require_consent()'s LOCAL attestation above, which is a separate,
+    client-side-only concept). Confirmed live 2026-09-27 by reading the
+    actual deployed route (routers/scan.py: `@router.post("/scan/consent")`
+    under the router's own "/api/v1" prefix) — an earlier version of this
+    client guessed "/consent" (no "/api/v1/scan" prefix) and got a 404 it
+    then treated as best-effort/non-blocking, so every real scan attempt
+    was 403ing on this account-level gate without ever surfacing why.
+    No request body — the endpoint takes none. Idempotent server-side (a
+    204 no-op if already granted for this account), so calling it before
+    every scan is cheap and self-heals any account whose earlier attempt
+    failed under the old, wrong path."""
+    status, body = api_post("/scan/consent", json_body=None)
+    return status in (200, 204), status, body
+
+
+# The API hard-rejects a scan with more than this many components (422,
+# "Inventory too large") -- confirmed live 2026-09-28 scanning eu1's full
+# dpkg list (1482 packages, no way to succeed at all without this). Every
+# scanner's own --limit flag only ever controlled what got PRINTED, not
+# what got SENT, so any real system over this size could never complete a
+# scan through this client, silently. Capped here, once, so every scanner
+# benefits without each needing its own truncation logic.
+MAX_SCAN_COMPONENTS = 1000
+
+
 def submit_scan(inventory):
     """Submits the detected component list for vulnerability matching:
 
@@ -311,10 +330,27 @@ def submit_scan(inventory):
 
     Returns a dict: {"available": bool, "status": int|None, "body": dict|None,
     "reason": str|None}. "available" is False when nothing was sent (no API
-    key configured) or the API rejected the request - callers should check
-    "reason" ("no_api_key" is the one routine, non-error case) before
-    treating a False result as a failure.
+    key configured, or the required consent step failed) or the API
+    rejected the request - callers should check "reason" ("no_api_key" is
+    the one routine, non-error case) before treating a False result as a
+    failure.
     """
+    if len(inventory) > MAX_SCAN_COMPONENTS:
+        print(
+            "[!] {} components detected, but the API accepts at most {} per scan -- "
+            "submitting the first {} only. Contact us for large-fleet scanning.".format(
+                len(inventory), MAX_SCAN_COMPONENTS, MAX_SCAN_COMPONENTS,
+            ),
+            file=sys.stderr,
+        )
+        inventory = inventory[:MAX_SCAN_COMPONENTS]
+
+    consent_ok, consent_status, consent_body = _ensure_server_consent()
+    if not consent_ok:
+        if isinstance(consent_body, dict) and consent_body.get("no_api_key"):
+            return {"available": False, "status": None, "body": consent_body, "reason": "no_api_key"}
+        return {"available": False, "status": consent_status, "body": consent_body, "reason": "consent_failed"}
+
     fingerprint = compute_fingerprint(inventory)
     payload = {"fingerprint": fingerprint, "components": inventory}
     status, body = api_post("/scan", json_body=payload)
