@@ -1,0 +1,21 @@
+# Copyright 2026 Valters Capital, SIA
+# Licensed under the Apache License, Version 2.0.
+# ValtersIT is a trademark of Valters Capital, SIA — see NOTICE.
+# Maintained by Hugo Valters
+
+# Local state written by the tool at runtime (consent record)
+.valtersit/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editors / OS noise
+.DS_Store
+*.swp
+
+# Never commit real credentials
+.env
+*.local
